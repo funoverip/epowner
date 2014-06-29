@@ -26,6 +26,7 @@ use Epowner::HTTP;
 use Epowner::StringsManipulation;
 use Epowner::Catalog;
 use Epowner::PkgCatalog;
+use Epowner::SQL;
 
 # Crypto
 use Epowner::DSA;
@@ -54,6 +55,7 @@ use Epowner::ModeWipe;
 use Epowner::ModeServerExec;
 use Epowner::ModeServerUpload;
 use Epowner::ModeClientDeploy;
+use Epowner::ModeSQL;
 
 
 

@@ -394,7 +394,10 @@ sub check_connectivity{
         my $this = shift;
         my $server_host = $this->{server_host};
         my $server_port = $this->{server_port};
-        my $s = IO::Socket::SSL->new("$server_host:$server_port");
+	my $s = IO::Socket::SSL->new(
+                PeerHost => $server_host,
+                PeerPort => $server_port,
+                SSL_verify_mode => SSL_VERIFY_NONE);
                 #or die "[-] ERROR in SSL Socket Creation to $server_host:$server_port\n    $!\n";
         if($s) { close $s; return 1;}
         else   { return 0;}
@@ -407,7 +410,10 @@ sub check_connectivity_webconsole{
         my $this = shift;
         my $server_host = $this->{server_host};
         my $server_port = $this->{server_consoleport};
-        my $s = IO::Socket::SSL->new("$server_host:$server_port");
+	my $s = IO::Socket::SSL->new(
+                PeerHost => $server_host,
+                PeerPort => $server_port,
+                SSL_verify_mode => SSL_VERIFY_NONE);
                 #or die "[-] ERROR in SSL Socket Creation to $server_host:$server_port\n    $!\n";
         if($s) { 
 		close $s; 
