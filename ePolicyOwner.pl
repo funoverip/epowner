@@ -121,6 +121,10 @@ my $option_sql 		= 0;
 my $option_sql_select 	= 0;
 my $option_sql_generic 	= 0;
 
+my $option_path_srpubkey  = 0;
+my $option_path_reqseckey = 0;
+my $option_path_framepkg  = 0;
+
 
 my $get_options_result= GetOptions (   
 		"test" 			=> \$option_test, 
@@ -174,6 +178,12 @@ my $get_options_result= GetOptions (
 		"sql"   		=> \$option_sql,
 		"select=s" 		=> \$option_sql_select,
 		"generic=s" 		=> \$option_sql_generic,
+
+		# github issue-1 workaround
+		"srpubkey=s" 		=> \$option_path_srpubkey,
+		"reqseckey=s"		=> \$option_path_reqseckey,
+		"framepkg=s" 		=> \$option_path_framepkg,
+
 );
 
 
@@ -328,6 +338,17 @@ if($option_register){
 	# Generate some random stuffs
 	$epo->init_prefix();
 	$epo->init_productid();
+
+	# Locql Keys provided ?
+	if($option_path_srpubkey){
+		$epo->set_path_srpubkey_bin ($option_path_srpubkey);
+	}
+        if($option_path_reqseckey){
+                $epo->set_path_reqseckey_bin ($option_path_reqseckey);
+        }
+        if($option_path_framepkg){
+                $epo->set_path_framepkg_exe ($option_path_framepkg);
+        }
 
 
 	# send request

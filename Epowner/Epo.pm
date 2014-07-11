@@ -236,12 +236,20 @@ sub new{
 	$this->{deploy_run_bat}			= "$this->{temp_folder}/deployment/run.bat";	# batch file wich will start our evil file, or execute our command
 												# during software deployment
 	
-
-
 	# Software Managment keys
 	$this->{smkey_dsa}		= $this->{catalog_dsa_folder} ;
 	$this->{smkey_rsa}		= $this->{catalog_rsa_folder} ;
 
+
+
+	#git-issue-1
+	#-----------
+	# local path to srpubkey.bin 
+        $this->{srpubkey_bin}  = '';             # Public DSA key of server
+	# local path to reqseckey.bin
+        $this->{reqseckey_bin} = '';             # "Common" private DSA key for registration request signature
+	# local path to framepkg.exe
+	$this->{framepkg_exe} = '';
 
 
 	# drop previous temp folder if any ..
@@ -388,5 +396,43 @@ sub get_force_nondba{
         my $this = shift;
         return $this->{server_force_nondba};
 }
+
+
+#git-issue-1
+#-----------
+sub set_path_srpubkey_bin{
+	my $this = shift;
+        $this->{srpubkey_bin}  = shift;
+                
+	# file exists ?
+	if(not -f $this->{srpubkey_bin}){
+		print "[-] ERROR (srpubkey_bin): file not found at '" . $this->{srpubkey_bin}. "'\n";
+		exit;
+	}
+	print "      [+] Local path to srpubkey.bin : " . $this->{srpubkey_bin} . "\n" if $this->{verbose};
+}
+sub set_path_reqseckey_bin{
+        my $this = shift;
+        $this->{reqseckey_bin}  = shift;
+
+        # file exists ?
+        if(not -f $this->{reqseckey_bin}){
+                print "[-] ERROR (reqseckey_bin): file not found at '" . $this->{reqseckey_bin}. "'\n";
+                exit;
+        }
+        print "      [+] Local path to reqseckey.bin : " . $this->{reqseckey_bin} . "\n" if $this->{verbose};
+}
+sub set_path_framepkg_exe{
+        my $this = shift;
+        $this->{framepkg_exe}  = shift;
+
+        # file exists ?
+        if(not -f $this->{framepkg_exe}){
+                print "[-] ERROR (framepkg_exe): file not found at '" . $this->{framepkg_exe}. "'\n";
+                exit;
+        }
+        print "      [+] Local path to framepkg.exe : " . $this->{framepkg_exe} . "\n" if $this->{verbose};
+}
+
 
 1;
