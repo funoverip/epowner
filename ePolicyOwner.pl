@@ -1,6 +1,6 @@
 #!/usr/bin/perl 
 #=====================================================================================================
-#**                                   ~= ePolicy 0wner v0.2 =~                                      **
+#**                                  ~= ePolicy 0wner v0.2.1 =~                                     **
 #**                                                                                                 **
 #**            McAfee ePolicy Orchestrator (version 4.6.0 -> 4.6.5)  -  A sexy exploit              **
 #**                                                                                                 **
@@ -21,7 +21,6 @@ use Socket;
 use Term::ANSIColor;
 use Epowner::Epo ':constants';	# ePolicy Owner module
 
-
 # Our main epo object
 my $epo = Epowner::Epo->new;
 
@@ -33,7 +32,7 @@ my $epo = Epowner::Epo->new;
 sub print_banner {
 	print << 'EOF';
 ***********************************************************************************
-**                         ~= ePolicy 0wner v0.2 =~                              **
+**                        ~= ePolicy 0wner v0.2.1 =~                             **
 **                                                                               **
 ** McAfee ePolicy Orchestrator (version 4.6.0 -> 4.6.5)  -  A sexy exploit       **
 **                                                                               **

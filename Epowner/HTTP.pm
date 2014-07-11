@@ -7,6 +7,11 @@ use Data::Dumper;
 use strict;
 use warnings;
 
+# git-issue-1
+IO::Socket::SSL::set_ctx_defaults(SSL_verify_mode => SSL_VERIFY_NONE);
+$ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+
+
 #============================================================#
 # Send a McAfee HTTP POST Request                            #
 #============================================================#
