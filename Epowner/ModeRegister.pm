@@ -121,7 +121,7 @@ sub mode_register_crypto_managment {
 	# Then trying to get the keys from ePO server
 	#========================================
 	}else{
-		($srpubkey, $reqseckey) = $this->mode_register_download_keys()
+		($reqseckey, $srpubkey) = $this->mode_register_download_keys()
 	}
 
         # Did we find the keys ?
