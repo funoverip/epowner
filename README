@@ -1,5 +1,5 @@
 =====================================================================================================
-**                                  ~= ePolicy 0wner v0.2.1 =~                                     **
+**                                  ~= ePolicy 0wner v0.2.2 =~                                     **
 **                                                                                                 **
 **            McAfee ePolicy Orchestrator (version 4.6.0 -> 4.6.5)  -  A sexy exploit              **
 **                                                                                                 **
@@ -21,7 +21,10 @@ v0.2   : - Bugfix:  Adding 'SSL_verify_mode => SSL_VERIFY_NONE' in check_connect
                     Thanks to Rik van Duijn (@rikvduijn) for the base code.
 v0.2.1 : - Bugfix:  Yet another SSL bug
                     Thanks to https://github.com/atucom
- 
+v0.2.2 : - Bugfix:  Confusion at registration function when initialize reqseckey (See GH issue #3)
+                    Thanks to https://github.com/slionelr 
+
+
 =====================================================================================================
  INTRODUCTION
 =====================================================================================================
